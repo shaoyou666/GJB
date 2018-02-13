@@ -66,11 +66,11 @@ public class UserInfoActivity extends AppCompatActivity {
                 new int[]{R.id.lv_tv_title,R.id.lv_tv_time,R.id.lv_tv_coin});
         lv_playlog.setAdapter(adapter);
         tv_userInfo.setText("用户名：" + username + "，" + uid + "\n" + account);
-        Element e_signIn = doc.getElementsByClass("signIn").select("a").first();
+        Element e_signIn = doc.getElementsByClass("signIn").select("a").last();
         final String signInUrl = "http://www.guajibang.com" + e_signIn.attr("href");
         bt_signIn.setText(e_signIn.text());
-        if(e_signIn.text().contains("已签到")){
-            //bt_signIn.setEnabled(false);
+        if(e_signIn.text().contains("已")){
+            bt_signIn.setEnabled(false);
         }
         bt_signIn.setOnClickListener(new View.OnClickListener() {
             @Override

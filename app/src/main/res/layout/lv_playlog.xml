@@ -20,7 +20,8 @@
             android:layout_height="wrap_content"
             android:id="@+id/lv_tv_time"
             android:layout_weight="1"
-            android:textSize="16sp" />
+            android:textSize="16sp"
+            android:textColor="@android:color/holo_blue_dark" />
 
         <TextView
             android:layout_width="wrap_content"

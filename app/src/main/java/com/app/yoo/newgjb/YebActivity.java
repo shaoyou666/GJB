@@ -1,8 +1,14 @@
 package com.app.yoo.newgjb;
 
+import android.content.Context;
+import android.content.DialogInterface;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.text.Editable;
+import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -30,6 +36,7 @@ import okhttp3.Response;
 
 public class YebActivity extends AppCompatActivity {
 
+    private Context mContext;
     private AppData appData;
     private TextView tv_yebInfo,tv_canPurchase,tv_canWithdrwa;
     private Button bt_purchase,bt_withdraw;
@@ -42,6 +49,7 @@ public class YebActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_yeb);
+        mContext = YebActivity.this;
 
         android.support.v7.app.ActionBar actionBar = getSupportActionBar();
         if(actionBar != null){
@@ -64,21 +72,80 @@ public class YebActivity extends AppCompatActivity {
         appData = (AppData)this.getApplication();
         new GetYebInfo().execute((Void) null);
 
+        et_purchase_value.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String str = et_purchase_value.getText().toString();
+                if(str != null && !str.equals("")){
+                    float value = Float.parseFloat(str);
+                    bt_purchase.setEnabled((value >= 10000));
+                }
+            }
+        });
+        et_withdraw_value.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String str = et_withdraw_value.getText().toString();
+                if(str != null && !str.equals("")) {
+                    float value = Float.parseFloat(str);
+                    bt_withdraw.setEnabled((value >= 10000));
+                }
+            }
+        });
+
         bt_purchase.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String money = et_purchase_value.getText().toString();
+                final String money = et_purchase_value.getText().toString();
                 if(money != null && !money.equals("")) {
-                    new PostDataTask(purchase_url, money).execute((Void) null);
+                    new AlertDialog.Builder(YebActivity.this)
+                            .setMessage("确认转入" + money + "邦币？")
+                            .setNegativeButton("取消",null)
+                            .setPositiveButton("确认", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    new PostDataTask(purchase_url, money).execute((Void) null);
+                                }
+                            }).create().show();
                 }
             }
         });
         bt_withdraw.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String money = et_withdraw_value.getText().toString();
+                final String money = et_withdraw_value.getText().toString();
+                final EditText et_password = new EditText(mContext);
+                et_password.setInputType(InputType.TYPE_NUMBER_FLAG_DECIMAL);
                 if(money != null && !money.equals("")) {
-                    new PostDataTask(withdraw_url, money).execute((Void) null);
+                    new AlertDialog.Builder(YebActivity.this)
+                            .setMessage("确认转出" + money + "邦币？")
+                            .setNegativeButton("取消",null)
+                            .setPositiveButton("确认", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    new PostDataTask(withdraw_url, money).execute((Void) null);
+                                }
+                            }).create().show();
                 }
             }
         });
@@ -122,8 +189,18 @@ public class YebActivity extends AppCompatActivity {
                 }
 
                 Elements e_help_block = doc.getElementsByClass("help-block");
-                tv_canPurchase.setText(e_help_block.get(0).text());//可转入余额
-                tv_canWithdrwa.setText(e_help_block.get(2).text());//可转出余额
+                String strCanPurchase = e_help_block.get(0).text();
+                String strCanWithdraw = e_help_block.get(2).text();
+                tv_canPurchase.setText(strCanPurchase);//可转入余额
+                tv_canWithdrwa.setText(strCanWithdraw);//可转出余额
+                String[] sps = strCanPurchase.split(" ");
+                if(sps.length>2){
+                    et_purchase_value.setText(sps[1]);
+                }
+                String[] sws = strCanWithdraw.split(" ");
+                if(sws.length>2){
+                    et_withdraw_value.setText(sws[1]);
+                }
                 Elements e_form = doc.getElementsByClass("form-horizontal");
                 purchase_url = "http://www.guajibang.com" + e_form.get(0).attr("action");//转入post地址
                 withdraw_url = "http://www.guajibang.com" + e_form.get(1).attr("action");//转入post地址
@@ -149,20 +226,39 @@ public class YebActivity extends AppCompatActivity {
 
         private String postUrl;
         private String postMoney;
+        private String postType = "in";
+        private String postPassword;
         PostDataTask(String url,String money){
             postUrl = url;
             postMoney = money;
         }
+        PostDataTask(String url,String money,String password){
+            postUrl = url;
+            postMoney = money;
+            postType = "out";
+            postPassword = password;
+        }
         @Override
         protected String doInBackground(Void... params) {
             try{
-                RequestBody body = new FormBody.Builder()
-                        .add("money",postMoney)
-                        .build();
-                Request request = new Request.Builder().url(postUrl).post(body).build();
-                Call call = appData.okHttpClient.newCall(request);
-                Response response = call.execute();
-                return  response.body().string();
+                if(postType.equals("in")) {
+                    RequestBody body = new FormBody.Builder()
+                            .add("money", postMoney)
+                            .build();
+                    Request request = new Request.Builder().url(postUrl).post(body).build();
+                    Call call = appData.okHttpClient.newCall(request);
+                    Response response = call.execute();
+                    return response.body().string();
+                }else if(postType.equals("out")){
+                    RequestBody body = new FormBody.Builder()
+                            .add("money", postMoney)
+                            .add("password",postPassword)
+                            .build();
+                    Request request = new Request.Builder().url(postUrl).post(body).build();
+                    Call call = appData.okHttpClient.newCall(request);
+                    Response response = call.execute();
+                    return response.body().string();
+                }
             }catch (Exception e){
                 e.printStackTrace();
             }
