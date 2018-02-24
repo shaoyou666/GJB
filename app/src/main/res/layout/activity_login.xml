@@ -62,6 +62,12 @@
 
             </android.support.design.widget.TextInputLayout>
 
+            <CheckBox
+                android:text="自动登录"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/cb_autologin" />
+
             <Button
                 android:id="@+id/email_sign_in_button"
                 style="?android:textAppearanceSmall"

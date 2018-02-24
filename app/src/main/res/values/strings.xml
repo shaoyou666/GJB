@@ -12,7 +12,9 @@
     <string name="error_field_required">此区域不能为空</string>
     <string name="permission_rationale">"需要读取联系人权限。"
     </string>
-    <string name="title_activity_userinfo">挂机邦-主页信息</string>
+    <string name="title_activity_userinfo">挂机邦</string>
     <string name="title_activity_yeb">挂机邦-余额宝</string>
     <string name="yeb">余额宝</string>
+    <string name="withdraw">提现</string>
+    <string name="taskRecord">挂机记录</string>
 </resources>

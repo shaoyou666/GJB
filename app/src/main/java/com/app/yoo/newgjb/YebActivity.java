@@ -1,7 +1,9 @@
 package com.app.yoo.newgjb;
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AlertDialog;
@@ -14,7 +16,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
-import android.widget.ProgressBar;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -39,17 +40,18 @@ public class YebActivity extends AppCompatActivity {
     private Context mContext;
     private AppData appData;
     private TextView tv_yebInfo,tv_canPurchase,tv_canWithdrwa;
-    private Button bt_purchase,bt_withdraw;
+    private Button bt_purchase,bt_withdraw,bt_zrjl,bt_zcjl,bt_syjl;
     private EditText et_purchase_value,et_withdraw_value;
     private ListView lv_yeb;
     private String purchase_url,withdraw_url;
-    private ProgressBar pb_wait;
+    private SharedPreferences settings;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_yeb);
         mContext = YebActivity.this;
+        settings = getSharedPreferences("settings",0);
 
         android.support.v7.app.ActionBar actionBar = getSupportActionBar();
         if(actionBar != null){
@@ -64,10 +66,11 @@ public class YebActivity extends AppCompatActivity {
         tv_canWithdrwa = (TextView) findViewById(R.id.tv_canWithdraw);
         bt_purchase = (Button) findViewById(R.id.bt_purchase);
         bt_withdraw = (Button) findViewById(R.id.bt_withdraw);
+        bt_zrjl = (Button) findViewById(R.id.bt_zrjl);
+        bt_zcjl = (Button) findViewById(R.id.bt_zcjl);
+        bt_syjl = (Button) findViewById(R.id.bt_syjl);
         et_purchase_value = (EditText) findViewById(R.id.et_purchase_value);
         et_withdraw_value = (EditText) findViewById(R.id.et_withdraw_value);
-        pb_wait = (ProgressBar) findViewById(R.id.progressBar);
-        pb_wait.setVisibility(View.VISIBLE);
 
         appData = (AppData)this.getApplication();
         new GetYebInfo().execute((Void) null);
@@ -135,25 +138,127 @@ public class YebActivity extends AppCompatActivity {
             public void onClick(View v) {
                 final String money = et_withdraw_value.getText().toString();
                 final EditText et_password = new EditText(mContext);
-                et_password.setInputType(InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                et_password.setInputType(InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                et_password.setText("516534");
                 if(money != null && !money.equals("")) {
                     new AlertDialog.Builder(YebActivity.this)
-                            .setMessage("确认转出" + money + "邦币？")
+                            .setMessage("确认转出" + money + "邦币？请输入密码")
+                            .setView(et_password)
                             .setNegativeButton("取消",null)
                             .setPositiveButton("确认", new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
-                                    new PostDataTask(withdraw_url, money).execute((Void) null);
+                                    String psw = et_password.getText().toString();
+                                    if(psw != null && !psw.equals("")) {
+                                        new PostDataTask(withdraw_url, money, psw).execute((Void) null);
+                                    }
                                 }
                             }).create().show();
                 }
             }
         });
+        bt_zrjl.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new GetRecordTask(0).execute((Void) null);
+            }
+        });
+        bt_zcjl.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new GetRecordTask(1).execute((Void) null);
+            }
+        });
+        bt_syjl.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new GetRecordTask(2).execute((Void) null);
+            }
+        });
+    }
+
+    public class GetRecordTask extends AsyncTask<Void,Void,String>{
+
+        private String url;
+        private ProgressDialog pd;
+
+        GetRecordTask(int type){
+            pd = new ProgressDialog(mContext);
+            pd.setMessage("加载中...");
+            pd.setCancelable(false);
+            switch (type){
+                case 0:
+                    url = "http://www.guajibang.com/?userYeb-0.html";
+                    break;
+                case 1:
+                    url = "http://www.guajibang.com/?userYeb-1.html";
+                    break;
+                case 2:
+                    url = "http://www.guajibang.com/?userYeb-2.html";
+                    break;
+                default:
+                    url = "http://www.guajibang.com/?userYeb-0.html";
+            }
+        }
+
+        @Override
+        protected String doInBackground(Void... params) {
+            try {
+                Request request = new Request.Builder()
+                        .url(url)
+                        .build();
+                Call call = appData.okHttpClient.newCall(request);
+                Response response = call.execute();
+                return  response.body().string();
+
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            pd.show();
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            if(s != null) {
+                Document doc = Jsoup.parse(s);
+                Elements paylog_trs = doc.getElementsByClass("paylog").first().select("tbody").select("tr");
+                List<Map<String,String>> list = new ArrayList<Map<String,String>>();
+                for(int j=0;j<paylog_trs.size();j++){
+                    Map<String ,String> map = new HashMap<String,String>();
+                    map.put("title",paylog_trs.get(j).select("td").get(2).text());
+                    map.put("time",paylog_trs.get(j).select("td").get(1).text());
+                    map.put("coin",paylog_trs.get(j).select("td").get(0).text());
+                    list.add(map);
+                }
+                SimpleAdapter adapter = new SimpleAdapter(YebActivity.this,list,R.layout.lv_playlog,
+                        new String[]{"title","time","coin"},
+                        new int[]{R.id.lv_tv_title,R.id.lv_tv_time,R.id.lv_tv_coin});
+                lv_yeb.setAdapter(adapter);
+            }
+            pd.dismiss();
+        }
     }
 
     public class GetYebInfo extends AsyncTask<Void,Void,String>{
 
-        String yebUrl = "http://www.guajibang.com/?useryeb.html";
+        private String yebUrl = "http://www.guajibang.com/?useryeb.html";
+        private ProgressDialog pd;
+        GetYebInfo(){
+            pd = new ProgressDialog(mContext);
+            pd.setMessage("加载中...");
+            pd.setCancelable(false);
+        }
+
+        @Override
+        protected void onPreExecute() {
+            pd.show();
+        }
+
         @Override
         protected String doInBackground(Void... params) {
             String result = null;
@@ -217,8 +322,8 @@ public class YebActivity extends AppCompatActivity {
                         new String[]{"title","time","coin"},
                         new int[]{R.id.lv_tv_title,R.id.lv_tv_time,R.id.lv_tv_coin});
                 lv_yeb.setAdapter(adapter);
-                pb_wait.setVisibility(View.GONE);
             }
+            pd.dismiss();
         }
     }
 
@@ -248,6 +353,9 @@ public class YebActivity extends AppCompatActivity {
                     Request request = new Request.Builder().url(postUrl).post(body).build();
                     Call call = appData.okHttpClient.newCall(request);
                     Response response = call.execute();
+                    SharedPreferences.Editor editor = settings.edit();
+                    editor.putBoolean("isUserInfoUpdated",true);
+                    editor.commit();
                     return response.body().string();
                 }else if(postType.equals("out")){
                     RequestBody body = new FormBody.Builder()
@@ -257,6 +365,9 @@ public class YebActivity extends AppCompatActivity {
                     Request request = new Request.Builder().url(postUrl).post(body).build();
                     Call call = appData.okHttpClient.newCall(request);
                     Response response = call.execute();
+                    SharedPreferences.Editor editor = settings.edit();
+                    editor.putBoolean("isUserInfoUpdated",true);
+                    editor.commit();
                     return response.body().string();
                 }
             }catch (Exception e){
@@ -268,7 +379,8 @@ public class YebActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(String result) {
             if(result != null) {
-                Toast.makeText(YebActivity.this, result, Toast.LENGTH_LONG).show();
+                Toast.makeText(YebActivity.this, AppData.convertUnicode(result), Toast.LENGTH_LONG).show();
+                new GetYebInfo().execute((Void) null);
             }
         }
     }

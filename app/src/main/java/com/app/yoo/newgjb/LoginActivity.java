@@ -7,6 +7,7 @@ import android.app.LoaderManager.LoaderCallbacks;
 import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.Loader;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -25,6 +26,8 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -68,8 +71,11 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     // UI references.
     private AutoCompleteTextView mEmailView;
     private EditText mPasswordView;
+    private CheckBox cb_autoLogin;
     private View mProgressView;
     private View mLoginFormView;
+    private SharedPreferences settings;
+    private boolean isAutoLogin;
     private AppData appData ;
 
 //    public final HashMap<String ,List<Cookie>> cookieStore = new HashMap<>();
@@ -92,6 +98,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+        settings = getSharedPreferences("settings",0);
+        isAutoLogin = settings.getBoolean("isAutoLogin",false);
         appData = (AppData)getApplication();
         this.setTitle(this.getString(R.string.app_name) + "-登录");
         // Set up the login form.
@@ -99,6 +107,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         populateAutoComplete();
         mEmailView.setText("shaoyou666@126.com");
         mPasswordView = (EditText) findViewById(R.id.password);
+        cb_autoLogin = (CheckBox) findViewById(R.id.cb_autologin);
+        cb_autoLogin.setChecked(isAutoLogin);
         mPasswordView.setText("5165344");
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
@@ -108,6 +118,15 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
                     return true;
                 }
                 return false;
+            }
+        });
+
+        cb_autoLogin.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                SharedPreferences.Editor editor = settings.edit();
+                editor.putBoolean("isAutoLogin",isChecked);
+                editor.commit();
             }
         });
 
@@ -121,6 +140,9 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+        if(isAutoLogin){
+            attemptLogin();
+        }
     }
 
     private void populateAutoComplete() {
